@@ -8,13 +8,14 @@ pub fn emit_task_resolved(env: &Env, task_id: u64, weight: u64) {
 }
 
 pub fn emit_weighted_vote(env: &Env, task_id: u64, guardian: &Address, weight: u64) {
-    env.events()
-        .publish((symbol_short!("wt_vote"),), (task_id, guardian.clone(), weight));
+    env.events().publish(
+        (symbol_short!("wt_vote"),),
+        (task_id, guardian.clone(), weight),
+    );
 }
 
 pub fn emit_pause_toggled(env: &Env, paused: bool) {
-    env.events()
-        .publish((symbol_short!("paused"),), paused);
+    env.events().publish((symbol_short!("paused"),), paused);
 }
 
 /// Emits an event when a reward stream is started for a contributor.
@@ -29,16 +30,9 @@ pub fn emit_reward_stream_failed(env: &Env, task_id: u64, contributor: &Address)
         .publish((symbol_short!("rw_fail"),), (task_id, contributor.clone()));
 }
 
-/// Emits an event when a guardian casts a weighted vote.
-pub fn emit_weighted_vote(env: &Env, task_id: u64, guardian: &Address, weight: u64) {
+pub fn emit_task_archived(env: &Env, task_id: u64, resolved_at: u64) {
     env.events()
-        .publish((symbol_short!("wt_vote"),), (task_id, guardian.clone(), weight));
-}
-
-/// Emits an event when a task reaches consensus.
-pub fn emit_task_resolved(env: &Env, task_id: u64, total_weight: u64) {
-    env.events()
-        .publish((symbol_short!("resolved"),), (task_id, total_weight));
+        .publish((symbol_short!("archived"),), (task_id, resolved_at));
 }
 
 /// Emits an event when the circuit breaker trips and pauses the contract.

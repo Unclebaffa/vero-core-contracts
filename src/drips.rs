@@ -1,5 +1,6 @@
 use soroban_sdk::{Address, Env, IntoVal, Symbol, Val, Vec as SorobanVec};
 
+use crate::storage;
 use crate::types::{ContractError, DataKey, RewardStream};
 
 /// Performs a cross-contract invocation to the Drips protocol address,
@@ -22,12 +23,7 @@ pub fn start_drips_stream(
     task_id: u64,
 ) -> Result<(), ContractError> {
     // 1. Verify the task is resolved
-    let task_key = DataKey::Task(task_id);
-    let task: crate::types::Task = env
-        .storage()
-        .instance()
-        .get(&task_key)
-        .ok_or(ContractError::NotAuthorized)?;
+    let task = storage::get_active_task(env, task_id).ok_or(ContractError::TaskNotFound)?;
 
     if !task.is_done {
         return Err(ContractError::TaskNotVerified);
@@ -54,11 +50,7 @@ pub fn start_drips_stream(
         ],
     );
 
-    env.invoke_contract::<Val>(
-        &drips_address,
-        &Symbol::new(env, "start_stream"),
-        args,
-    );
+    env.invoke_contract::<Val>(&drips_address, &Symbol::new(env, "start_stream"), args);
 
     // 4. Record the reward stream in local storage
     let stream = RewardStream {

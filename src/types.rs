@@ -6,6 +6,7 @@ pub struct Task {
     pub id: u64,
     pub votes: u32,
     pub is_done: bool,
+    pub resolved_at: u64,
     /// Cumulative reputation weight accrued from all guardian votes.
     /// Consensus is reached when this meets or exceeds the weight threshold.
     pub total_weight_accrued: u64,
@@ -28,7 +29,8 @@ pub enum DataKey {
     Guardian(Address),
     Reputation(Address),
     WeightThreshold,
-    Task(u64),
+    ActiveTask(u64),
+    ArchivedTask(u64),
     Voted(u64, Address), // (task_id, guardian)
     Admin,
     DripsAddress,
@@ -37,11 +39,9 @@ pub enum DataKey {
     TokenAddress,
     LockThreshold,
     LockedBalance(Address),
-    Lock,              // re-entrancy mutex
-    WeightThreshold,
-    Reputation(Address),   // u64 reputation score for a guardian
-    FailureCount,          // circuit breaker failure counter
-    Paused,                // circuit breaker pause flag
+    Lock,         // re-entrancy mutex
+    FailureCount, // circuit breaker failure counter
+    Paused,       // circuit breaker pause flag
 }
 
 #[contracterror]
@@ -49,9 +49,6 @@ pub enum DataKey {
 pub enum ContractError {
     NotAuthorized = 1,
     DuplicateVote = 2,
-    NoReputationScore = 8,
-    ZeroWeightVote = 9,
-    WeightOverflow = 10,
     TaskNotVerified = 3,
     StreamAlreadyActive = 4,
     DripsCallFailed = 5,
@@ -60,9 +57,13 @@ pub enum ContractError {
     InsufficientLockedBalance = 8,
     StillGuardian = 9,
     NotGuardian = 10,
-    Locked = 6,
-    NoReputationScore = 7,
-    ZeroWeightVote = 8,
-    WeightOverflow = 9,
-    ContractPaused = 10,
+    Locked = 11,
+    NoReputationScore = 12,
+    ZeroWeightVote = 13,
+    WeightOverflow = 14,
+    ContractPaused = 15,
+    EscrowUnavailable = 16,
+    TaskNotFound = 17,
+    TaskNotStale = 18,
+    TaskAlreadyArchived = 19,
 }

@@ -8,6 +8,7 @@ pub struct Task {
     pub is_done: bool,
     pub total_weight_accrued: u64,
     pub is_cancelled: bool,
+    pub resolved_at: u64,
 }
 
 #[contracttype]
@@ -58,6 +59,8 @@ pub enum DataKey {
     AllVotes,
     AllRewardStreams,
     Initialized,
+    ActiveTask(u64),
+    ArchivedTask(u64),
 }
 
 /// Every public write operation exposed by VeroContract.
@@ -114,4 +117,9 @@ pub enum ContractError {
     ContractPaused = 15,
     EscrowUnavailable = 16,
     TaskCancelled = 17,
+    InsufficientReputation = 18,
+    BatchTooLarge = 19,
+    TaskAlreadyArchived = 20,
+    TaskNotFound = 21,
+    TaskNotStale = 22,
 }

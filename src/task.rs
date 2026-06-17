@@ -2,7 +2,7 @@ use soroban_sdk::{Address, Env, Vec};
 
 use crate::reentrancy;
 use crate::storage;
-use crate::types::{ContractError, Task};
+use crate::types::{ContractError, DataKey, Task};
 
 const MAX_REGISTER_TASK_BATCH_SIZE: u32 = 32;
 
@@ -15,31 +15,39 @@ pub fn register_tasks(env: &Env, admin: Address, task_ids: Vec<u64>) -> Result<(
     reentrancy::lock(env)?;
 
     for task_id in task_ids.into_iter() {
-        let key = DataKey::Task(task_id);
-        if env.storage().instance().has(&key) {
+        if storage::has_active_task(env, task_id) {
             reentrancy::unlock(env);
             return Err(ContractError::NotAuthorized);
         }
 
-    let mut all_tasks: Vec<u64> = env
-        .storage()
-        .instance()
-        .get(&DataKey::AllTasks)
-        .unwrap_or(Vec::new(env));
-    all_tasks.push_back(task_id);
-    env.storage().instance().set(&DataKey::AllTasks, &all_tasks);
+        let mut all_tasks: Vec<u64> = env
+            .storage()
+            .instance()
+            .get(&DataKey::AllTasks)
+            .unwrap_or(Vec::new(env));
+        all_tasks.push_back(task_id);
+        env.storage().instance().set(&DataKey::AllTasks, &all_tasks);
 
-    let task = Task {
-        id: task_id,
-        votes: 0,
-        is_done: false,
-        resolved_at: 0,
-        total_weight_accrued: 0,
-        is_cancelled: false,
-    };
-    storage::set_active_task(env, &task);
+        let task = Task {
+            id: task_id,
+            votes: 0,
+            is_done: false,
+            resolved_at: 0,
+            total_weight_accrued: 0,
+            is_cancelled: false,
+        };
+        storage::set_active_task(env, &task);
+    }
 
     reentrancy::unlock(env);
+    Ok(())
+}
+
+pub fn cancel_task(env: &Env, admin: Address, task_id: u64) -> Result<(), ContractError> {
+    admin.require_auth();
+    let mut task = storage::get_active_task(env, task_id).ok_or(ContractError::TaskNotFound)?;
+    task.is_cancelled = true;
+    storage::set_active_task(env, &task);
     Ok(())
 }
 

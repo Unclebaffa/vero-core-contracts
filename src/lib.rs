@@ -27,15 +27,7 @@ pub struct VeroContract;
 
 #[contractimpl]
 impl VeroContract {
-    /// Initialise the contract. Persists `admin` under `DataKey::Admin` so that
-    /// privileged operations (register_task, cancel_task, etc.) can verify the
-    /// caller is the real admin rather than accepting any arbitrary address.
-    pub fn initialize(
-        env: Env,
-        admin: Address,
-        token: Address,
-        lock_threshold: i128,
-    ) -> Result<(), ContractError> {
+    pub fn initialize(env: Env, token: Address, lock_threshold: i128) -> Result<(), ContractError> {
         if env.storage().instance().get::<_, bool>(&DataKey::Initialized).unwrap_or(false) {
             return Err(ContractError::AlreadyInitialized);
         }
@@ -108,6 +100,63 @@ impl VeroContract {
 
     pub fn calculate_voting_power(env: Env, guardian: Address) -> Option<u64> {
         reputation::calculate_voting_power(&env, &guardian)
+    }
+
+    pub fn lock_tokens(env: Env, guardian: Address, amount: i128) -> Result<(), ContractError> {
+        guardian.require_auth();
+        let token: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::TokenAddress)
+            .ok_or(ContractError::NotInitialized)?;
+        let token_client = soroban_sdk::token::Client::new(&env, &token);
+        token_client.transfer(&guardian, &env.current_contract_address(), &amount);
+        let key = DataKey::LockedBalance(guardian.clone());
+        let prev: i128 = env.storage().instance().get(&key).unwrap_or(0);
+        env.storage().instance().set(&key, &(prev + amount));
+        Ok(())
+    }
+
+    pub fn unlock_tokens(env: Env, guardian: Address) -> Result<(), ContractError> {
+        guardian.require_auth();
+        if guardian::is_guardian(&env, &guardian) {
+            return Err(ContractError::StillGuardian);
+        }
+        let key = DataKey::LockedBalance(guardian.clone());
+        let amount: i128 = env.storage().instance().get(&key).unwrap_or(0);
+        if amount > 0 {
+            let token: Address = env
+                .storage()
+                .instance()
+                .get(&DataKey::TokenAddress)
+                .ok_or(ContractError::NotInitialized)?;
+            let token_client = soroban_sdk::token::Client::new(&env, &token);
+            token_client.transfer(&env.current_contract_address(), &guardian, &amount);
+            env.storage().instance().set(&key, &0i128);
+        }
+        Ok(())
+    }
+
+    pub fn resign_guardian(env: Env, guardian: Address) -> Result<(), ContractError> {
+        guardian.require_auth();
+        if !guardian::is_guardian(&env, &guardian) {
+            return Err(ContractError::NotGuardian);
+        }
+        let g_key = DataKey::Guardian(guardian.clone());
+        env.storage().instance().remove(&g_key);
+        let key = DataKey::LockedBalance(guardian.clone());
+        let amount: i128 = env.storage().instance().get(&key).unwrap_or(0);
+        if amount > 0 {
+            let token: Address = env
+                .storage()
+                .instance()
+                .get(&DataKey::TokenAddress)
+                .ok_or(ContractError::NotInitialized)?;
+            let token_client = soroban_sdk::token::Client::new(&env, &token);
+            token_client.transfer(&env.current_contract_address(), &guardian, &amount);
+            env.storage().instance().set(&key, &0i128);
+        }
+        Ok(())
     }
 
     pub fn set_weight_threshold(env: Env, admin: Address, threshold: u64) -> Result<(), ContractError> {
@@ -249,11 +298,11 @@ impl VeroContract {
             return Err(ContractError::DuplicateVote);
         }
 
-        let weight = match reputation::calculate_voting_power(&env, &guardian) {
-            Some(w) => w,
-            None => {
+        let weight = match reputation::get_rep(&env, &guardian) {
+            Ok(w) => w,
+            Err(e) => {
                 reentrancy::unlock(&env);
-                return Err(ContractError::NoReputationScore);
+                return Err(e);
             }
         };
 
@@ -290,17 +339,14 @@ impl VeroContract {
             .get(&DataKey::WeightThreshold)
             .unwrap_or(DEFAULT_WEIGHT_THRESHOLD);
 
-        if t.total_weight_accrued >= weight_threshold {
+        if t.total_weight_accrued >= weight_threshold && !t.is_done {
             t.is_done = true;
             t.resolved_at = env.ledger().timestamp();
             events::emit_task_resolved(&env, task_id, t.total_weight_accrued);
 
             if let Some(vault_addr) = env.storage().instance().get::<_, Address>(&DataKey::VaultAddress) {
                 let vault_client = vault::VaultClient::new(&env, &vault_addr);
-                if vault_client.try_release_funds(&task_id).is_err() {
-                    reentrancy::unlock(&env);
-                    return Err(ContractError::EscrowUnavailable);
-                }
+                vault_client.release_funds(task_id);
             }
         }
 
@@ -383,6 +429,7 @@ impl VeroContract {
     // ─── Snapshot ──────────────────────────────────────────────────
 
     pub fn get_snapshot(env: Env) -> Snapshot {
+        let timestamp = env.ledger().timestamp();
         let paused = env.storage().instance().get(&DataKey::Paused).unwrap_or(false);
         let failure_count = env.storage().instance().get(&DataKey::FailureCount).unwrap_or(0);
         let weight_threshold = env.storage().instance().get(&DataKey::WeightThreshold).unwrap_or(DEFAULT_WEIGHT_THRESHOLD);
@@ -430,6 +477,7 @@ impl VeroContract {
         }
 
         Snapshot {
+            timestamp,
             paused,
             failure_count,
             weight_threshold,
@@ -442,5 +490,37 @@ impl VeroContract {
             votes,
             reward_streams,
         }
+    }
+
+    pub fn record_snapshot(env: Env) -> Result<(), ContractError> {
+        let mut snapshot = Self::get_snapshot(env.clone());
+        let timestamp = snapshot.timestamp;
+
+        let mut all_snapshots: soroban_sdk::Vec<u64> = env
+            .storage()
+            .instance()
+            .get(&DataKey::AllSnapshots)
+            .unwrap_or(soroban_sdk::Vec::new(&env));
+        all_snapshots.push_back(timestamp);
+        env.storage().instance().set(&DataKey::AllSnapshots, &all_snapshots);
+
+        env.storage().instance().set(&DataKey::Snapshot(timestamp), &snapshot);
+        events::emit_snapshot_recorded(&env, timestamp);
+
+        Ok(())
+    }
+
+    pub fn get_snapshot_history(env: Env) -> soroban_sdk::Vec<u64> {
+        env.storage()
+            .instance()
+            .get(&DataKey::AllSnapshots)
+            .unwrap_or(soroban_sdk::Vec::new(&env))
+    }
+
+    pub fn get_snapshot_at(env: Env, timestamp: u64) -> Result<Snapshot, ContractError> {
+        env.storage()
+            .instance()
+            .get(&DataKey::Snapshot(timestamp))
+            .ok_or(ContractError::SnapshotNotFound)
     }
 }

@@ -6,6 +6,7 @@ use soroban_sdk::{
 };
 use vero_core_contracts::VeroContractClient;
 
+// Matches the lock threshold set in setup().
 const LOCK_THRESHOLD: i128 = 100;
 
 fn setup() -> (Env, Address, Address, VeroContractClient<'static>) {
@@ -21,8 +22,7 @@ fn setup() -> (Env, Address, Address, VeroContractClient<'static>) {
     let token = env.register_stellar_asset_contract_v2(token_admin.clone());
     let token_addr = token.address();
 
-    // Pass admin so it is persisted under DataKey::Admin.
-    client.initialize(&admin, &token_addr, &LOCK_THRESHOLD);
+    client.initialize(&token_addr, &LOCK_THRESHOLD);
 
     (env, admin, token_addr, client)
 }
@@ -204,6 +204,7 @@ fn test_weight_vs_count_logic() {
 
 #[test]
 fn test_insufficient_weight_does_not_resolve_task() {
+    // Five guardians each with rep=100, threshold=600 → total 500 < 600, not done.
     let (env, admin, token, client) = setup();
     client.set_weight_threshold(&admin, &600u64);
 
@@ -255,6 +256,8 @@ fn test_custom_weight_threshold() {
     assert_eq!(client.get_weight_threshold(), 1000);
 }
 
+// ─── Reputation gate ────────────────────────────────────────────────
+
 #[test]
 fn test_vote_rejected_without_reputation() {
     let (env, admin, token, client) = setup();
@@ -263,8 +266,33 @@ fn test_vote_rejected_without_reputation() {
     client.register_task(&admin, &7u64);
     lock_for_guardian(&env, &token, &client, &g, LOCK_THRESHOLD + 1);
 
+    // No reputation set → NoReputationScore
     let result = client.try_vote(&g, &7u64);
     assert!(result.is_err());
+}
+
+#[test]
+fn test_vote_rejected_with_insufficient_reputation() {
+    let (env, admin, token, client) = setup();
+    // Score 99 is below MIN_REPUTATION_THRESHOLD (100)
+    let g = add_guardian_with_rep(&env, &client, &admin, 99);
+    client.register_task(&admin, &8u64);
+    lock_for_guardian(&env, &token, &client, &g, 101);
+
+    let result = client.try_vote(&g, &8u64);
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_vote_allowed_at_minimum_reputation_threshold() {
+    let (env, admin, token, client) = setup();
+    // Score 100 is exactly at MIN_REPUTATION_THRESHOLD — should be allowed
+    let g = add_guardian_with_rep(&env, &client, &admin, 100);
+    client.register_task(&admin, &9u64);
+    lock_for_guardian(&env, &token, &client, &g, 101);
+
+    let result = client.try_vote(&g, &9u64);
+    assert!(result.is_ok());
 }
 
 #[test]
@@ -564,16 +592,39 @@ fn test_operations_resume_after_unpause() {
 
     client.toggle_pause(&admin);
     assert!(client.is_paused());
+
+    // Verify operations are rejected while paused
     assert!(client.try_register_task(&admin, &1u64).is_err());
 
     client.toggle_pause(&admin);
     assert!(!client.is_paused());
 
+    // Operations succeed after unpause
     client.register_task(&admin, &1u64);
     lock_for_guardian(&env, &token, &client, &g, 101);
     client.vote(&g, &1u64);
 
-    assert!(client.get_task(&1u64).unwrap().is_done);
+    let task = client.get_task(&1u64).unwrap();
+    assert!(task.is_done);
+}
+
+#[test]
+fn test_explicit_pause_and_unpause_rejects_vote() {
+    let (env, admin, token, client) = setup();
+    client.register_task(&admin, &1u64);
+    let g = add_guardian_with_rep(&env, &client, &admin, 100);
+    lock_for_guardian(&env, &token, &client, &g, 101);
+
+    client.pause(&admin);
+    assert!(client.is_paused());
+
+    let result = client.try_vote(&g, &1u64);
+    assert!(result.is_err());
+
+    client.unpause(&admin);
+    assert!(!client.is_paused());
+    client.register_task(&admin, &2u64);
+    assert!(client.get_task(&2u64).is_some());
 }
 
 #[test]
@@ -728,10 +779,12 @@ fn test_cost_spot_checks() {
     assert_eq!(client.get_estimated_cost(&Operation::ResetCircuitBreaker), 800_000);
     assert_eq!(client.get_estimated_cost(&Operation::RecordFailure),       880_000);
     assert_eq!(client.get_estimated_cost(&Operation::RegisterTask),      1_000_000);
+
     assert_eq!(client.get_estimated_cost(&Operation::LockTokens),        1_250_000);
     assert_eq!(client.get_estimated_cost(&Operation::StartRewardStream), 1_330_000);
     assert_eq!(client.get_estimated_cost(&Operation::UnlockTokens),      1_300_000);
     assert_eq!(client.get_estimated_cost(&Operation::ResignGuardian),    1_400_000);
+
     assert_eq!(client.get_estimated_cost(&Operation::Vote),              1_960_000);
     assert_eq!(client.get_estimated_cost(&Operation::UpgradeContract),   2_500_000);
 }
@@ -742,7 +795,8 @@ fn test_estimated_cost_requires_no_auth() {
     let contract_id = env.register_contract(None, vero_core_contracts::VeroContract);
     let client = VeroContractClient::new(&env, &contract_id);
 
-    assert!(client.get_estimated_cost(&Operation::Vote) > 0);
+    let cost = client.get_estimated_cost(&Operation::Vote);
+    assert!(cost > 0);
 }
 
 #[test]

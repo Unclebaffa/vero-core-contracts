@@ -816,3 +816,119 @@ fn test_all_costs_above_base_invocation_overhead() {
         assert!(client.get_estimated_cost(&op) > BASE, "{:?} is below base overhead", op);
     }
 }
+
+
+// ─── Withdrawal timelock tests ──────────────────────────────────────
+
+#[test]
+fn test_unlock_tokens_blocked_without_timelock_request() {
+    let (env, admin, token, client) = setup();
+    let guardian = add_guardian_with_rep(&env, &client, &admin, 300);
+    lock_for_guardian(&env, &token, &client, &guardian, 150);
+
+    // Try to unlock without first requesting - should fail
+    let result = client.try_unlock_tokens(&guardian);
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_request_unlock_initiates_timelock() {
+    let (env, admin, token, client) = setup();
+    let guardian = add_guardian_with_rep(&env, &client, &admin, 300);
+    lock_for_guardian(&env, &token, &client, &guardian, 150);
+
+    // Request unlock should succeed
+    client.request_unlock(&guardian);
+    
+    // Timelock should be set
+    let timelock = client.get_withdrawal_timelock(&guardian);
+    assert!(timelock.is_some());
+}
+
+#[test]
+fn test_unlock_tokens_blocked_before_24_hours() {
+    let (env, admin, token, client) = setup();
+    let guardian = add_guardian_with_rep(&env, &client, &admin, 300);
+    lock_for_guardian(&env, &token, &client, &guardian, 150);
+
+    // Request unlock
+    client.request_unlock(&guardian);
+
+    // Try to unlock immediately - should fail
+    let result = client.try_unlock_tokens(&guardian);
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_unlock_tokens_succeeds_after_24_hours() {
+    let (env, admin, token, client) = setup();
+    let guardian = add_guardian_with_rep(&env, &client, &admin, 300);
+    lock_for_guardian(&env, &token, &client, &guardian, 150);
+
+    // Request unlock
+    client.request_unlock(&guardian);
+    
+    // Get the timelock timestamp
+    let timelock = client.get_withdrawal_timelock(&guardian).unwrap();
+    
+    // Advance ledger by 24 hours + 1 second
+    let jump = 86401u64;
+    env.ledger().set_timestamp(timelock + jump);
+    
+    // Now unlock should succeed
+    let result = client.try_unlock_tokens(&guardian);
+    assert!(result.is_ok());
+    
+    // Timelock should be cleared
+    let new_timelock = client.get_withdrawal_timelock(&guardian);
+    assert!(new_timelock.is_none());
+}
+
+#[test]
+fn test_resign_guardian_blocked_before_24_hours() {
+    let (env, admin, token, client) = setup();
+    let guardian = add_guardian_with_rep(&env, &client, &admin, 300);
+    lock_for_guardian(&env, &token, &client, &guardian, 150);
+
+    // Request unlock
+    client.request_unlock(&guardian);
+
+    // Try to resign immediately - should fail
+    let result = client.try_resign_guardian(&guardian);
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_resign_guardian_succeeds_after_24_hours() {
+    let (env, admin, token, client) = setup();
+    let guardian = add_guardian_with_rep(&env, &client, &admin, 300);
+    lock_for_guardian(&env, &token, &client, &guardian, 150);
+
+    // Request unlock
+    client.request_unlock(&guardian);
+    
+    // Get the timelock timestamp
+    let timelock = client.get_withdrawal_timelock(&guardian).unwrap();
+    
+    // Advance ledger by 24 hours + 1 second
+    let jump = 86401u64;
+    env.ledger().set_timestamp(timelock + jump);
+    
+    // Now resign should succeed
+    let result = client.try_resign_guardian(&guardian);
+    assert!(result.is_ok());
+    
+    // Guardian should no longer be registered
+    assert!(!client.is_guardian(&guardian));
+}
+
+#[test]
+fn test_request_unlock_fails_if_still_guardian() {
+    let (env, admin, token, client) = setup();
+    let guardian = add_guardian_with_rep(&env, &client, &admin, 300);
+    lock_for_guardian(&env, &token, &client, &guardian, 150);
+
+    // Try to request unlock while still a guardian - should fail
+    let result = client.try_request_unlock(&guardian);
+    assert!(result.is_err());
+}

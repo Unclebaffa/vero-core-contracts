@@ -185,12 +185,11 @@ impl VeroCore {
             return Err(ContractError::ZeroWeightVote);
         }
 
-        let task_key = DataKey::Task(task_id);
-        let mut t: types::Task = match env.storage().instance().get(&task_key) {
+        let mut t: types::Task = match storage::get_active_task(&env, task_id) {
             Some(t) => t,
             None => {
                 reentrancy::unlock(&env);
-                return Err(ContractError::NotAuthorized);
+                return Err(ContractError::TaskNotFound);
             }
         };
 
@@ -214,16 +213,14 @@ impl VeroCore {
             .get(&DataKey::WeightThreshold)
             .unwrap_or(DEFAULT_WEIGHT_THRESHOLD);
 
-        if t.total_weight_accrued >= weight_threshold {
+        if t.total_weight_accrued >= weight_threshold && !t.is_done {
             t.is_done = true;
+            t.resolved_at = env.ledger().timestamp();
             events::emit_task_resolved(&env, task_id, t.total_weight_accrued);
 
             if let Some(vault_addr) = env.storage().instance().get::<_, Address>(&DataKey::VaultAddress) {
                 let vault_client = vault::VaultClient::new(&env, &vault_addr);
-                if vault_client.try_release_funds(&task_id).is_err() {
-                    reentrancy::unlock(&env);
-                    return Err(ContractError::EscrowUnavailable);
-                }
+                vault_client.release_funds(task_id);
             }
         }
 
@@ -236,12 +233,12 @@ impl VeroCore {
         env.storage().instance().set(&DataKey::AllVotes, &all_votes);
 
         env.storage().instance().set(&voted_key, &true);
-        env.storage().instance().set(&task_key, &t);
+        storage::set_active_task(&env, &t);
 
         events::emit_weighted_vote(&env, task_id, &guardian, weight);
 
         reentrancy::unlock(&env);
-        result
+        Ok(())
     }
 
     pub fn get_task(env: Env, task_id: u64) -> Option<types::Task> {
@@ -311,6 +308,7 @@ impl VeroCore {
     // ─── Snapshot ──────────────────────────────────────────────────
 
     pub fn get_snapshot(env: Env) -> Snapshot {
+        let timestamp = env.ledger().timestamp();
         let paused = env.storage().instance().get(&DataKey::Paused).unwrap_or(false);
         let failure_count = env.storage().instance().get(&DataKey::FailureCount).unwrap_or(0);
         let weight_threshold = env.storage().instance().get(&DataKey::WeightThreshold).unwrap_or(DEFAULT_WEIGHT_THRESHOLD);
@@ -358,6 +356,7 @@ impl VeroCore {
         }
 
         Snapshot {
+            timestamp,
             paused,
             failure_count,
             weight_threshold,
@@ -370,5 +369,37 @@ impl VeroCore {
             votes,
             reward_streams,
         }
+    }
+
+    pub fn record_snapshot(env: Env) -> Result<(), ContractError> {
+        let mut snapshot = Self::get_snapshot(env.clone());
+        let timestamp = snapshot.timestamp;
+
+        let mut all_snapshots: soroban_sdk::Vec<u64> = env
+            .storage()
+            .instance()
+            .get(&DataKey::AllSnapshots)
+            .unwrap_or(soroban_sdk::Vec::new(&env));
+        all_snapshots.push_back(timestamp);
+        env.storage().instance().set(&DataKey::AllSnapshots, &all_snapshots);
+
+        env.storage().instance().set(&DataKey::Snapshot(timestamp), &snapshot);
+        events::emit_snapshot_recorded(&env, timestamp);
+
+        Ok(())
+    }
+
+    pub fn get_snapshot_history(env: Env) -> soroban_sdk::Vec<u64> {
+        env.storage()
+            .instance()
+            .get(&DataKey::AllSnapshots)
+            .unwrap_or(soroban_sdk::Vec::new(&env))
+    }
+
+    pub fn get_snapshot_at(env: Env, timestamp: u64) -> Result<Snapshot, ContractError> {
+        env.storage()
+            .instance()
+            .get(&DataKey::Snapshot(timestamp))
+            .ok_or(ContractError::SnapshotNotFound)
     }
 }

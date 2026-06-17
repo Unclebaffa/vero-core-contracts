@@ -8,7 +8,6 @@ mod reputation;
 mod task;
 mod types;
 mod vault;
-mod reentrancy;
 pub mod events;
 
 use soroban_sdk::{contract, contractimpl, Address, Env, Vec};
@@ -250,7 +249,7 @@ impl VeroContract {
         task_id: u64,
     ) -> Result<(), ContractError> {
         circuit_breaker::require_not_paused(&env)?;
-        let task_ids = Vec::from_array(env, [task_id]);
+        let task_ids = soroban_sdk::vec![&env, task_id];
         task::register_tasks(&env, admin, task_ids)
     }
 
@@ -403,14 +402,6 @@ impl VeroContract {
     }
 
     // ─── Circuit breaker ───────────────────────────────────────────
-
-    /// Returns true if the contract is currently paused by the circuit breaker.
-    pub fn is_paused(env: Env) -> bool {
-        env.storage()
-            .instance()
-            .get(&DataKey::Paused)
-            .unwrap_or(false)
-    }
 
     /// Reports a transaction failure to the circuit breaker.
     /// Anyone can call this after observing a failed contract invocation.

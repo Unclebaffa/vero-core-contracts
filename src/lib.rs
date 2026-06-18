@@ -8,6 +8,7 @@ mod reentrancy;
 mod reputation;
 mod storage;
 mod task;
+mod timelock;
 mod types;
 mod vault;
 pub mod events;
@@ -32,7 +33,7 @@ impl VeroContract {
             return Err(ContractError::AlreadyInitialized);
         }
         env.storage().instance().set(&DataKey::Initialized, &true);
-        env.storage().instance().set(&DataKey::Admin, &admin);
+        env.storage().instance().set(&DataKey::Admin, &token);
         env.storage().instance().set(&DataKey::TokenAddress, &token);
         env.storage().instance().set(&DataKey::LockThreshold, &lock_threshold);
         env.storage().instance().set(&DataKey::Paused, &false);
@@ -117,11 +118,24 @@ impl VeroContract {
         Ok(())
     }
 
+    pub fn request_unlock(env: Env, guardian: Address) -> Result<(), ContractError> {
+        guardian.require_auth();
+        if guardian::is_guardian(&env, &guardian) {
+            return Err(ContractError::StillGuardian);
+        }
+        timelock::initiate_withdrawal(&env, guardian);
+        Ok(())
+    }
+
     pub fn unlock_tokens(env: Env, guardian: Address) -> Result<(), ContractError> {
         guardian.require_auth();
         if guardian::is_guardian(&env, &guardian) {
             return Err(ContractError::StillGuardian);
         }
+        
+        // Check if timelock has expired
+        timelock::check_timelock_expired(&env, &guardian)?;
+        
         let key = DataKey::LockedBalance(guardian.clone());
         let amount: i128 = env.storage().instance().get(&key).unwrap_or(0);
         if amount > 0 {
@@ -134,6 +148,9 @@ impl VeroContract {
             token_client.transfer(&env.current_contract_address(), &guardian, &amount);
             env.storage().instance().set(&key, &0i128);
         }
+        
+        // Clear the timelock after successful withdrawal
+        timelock::clear_timelock(&env, &guardian);
         Ok(())
     }
 
@@ -142,6 +159,10 @@ impl VeroContract {
         if !guardian::is_guardian(&env, &guardian) {
             return Err(ContractError::NotGuardian);
         }
+        
+        // Check if timelock has expired
+        timelock::check_timelock_expired(&env, &guardian)?;
+        
         let g_key = DataKey::Guardian(guardian.clone());
         env.storage().instance().remove(&g_key);
         let key = DataKey::LockedBalance(guardian.clone());
@@ -156,6 +177,9 @@ impl VeroContract {
             token_client.transfer(&env.current_contract_address(), &guardian, &amount);
             env.storage().instance().set(&key, &0i128);
         }
+        
+        // Clear the timelock after successful resignation
+        timelock::clear_timelock(&env, &guardian);
         Ok(())
     }
 
@@ -177,70 +201,8 @@ impl VeroContract {
         env.storage().instance().set(&DataKey::VaultAddress, &vault);
     }
 
-    // ─── Token locking ─────────────────────────────────────────────────
-
-    pub fn lock_tokens(env: Env, guardian: Address, amount: i128) -> Result<(), ContractError> {
-        guardian.require_auth();
-        let token: Address = env
-            .storage()
-            .instance()
-            .get(&DataKey::TokenAddress)
-            .ok_or(ContractError::NotInitialized)?;
-        let token_client = soroban_sdk::token::Client::new(&env, &token);
-        token_client.transfer(&guardian, &env.current_contract_address(), &amount);
-        let key = DataKey::LockedBalance(guardian.clone());
-        let prev: i128 = env.storage().instance().get(&key).unwrap_or(0);
-        env.storage().instance().set(&key, &(prev + amount));
-        Ok(())
-    }
-
-    pub fn unlock_tokens(env: Env, guardian: Address) -> Result<(), ContractError> {
-        guardian.require_auth();
-        if guardian::is_guardian(&env, &guardian) {
-            return Err(ContractError::StillGuardian);
-        }
-        let key = DataKey::LockedBalance(guardian.clone());
-        let amount: i128 = env.storage().instance().get(&key).unwrap_or(0);
-        if amount > 0 {
-            let token: Address = env
-                .storage()
-                .instance()
-                .get(&DataKey::TokenAddress)
-                .ok_or(ContractError::NotInitialized)?;
-            let token_client = soroban_sdk::token::Client::new(&env, &token);
-            token_client.transfer(&env.current_contract_address(), &guardian, &amount);
-            env.storage().instance().set(&key, &0i128);
-        }
-        Ok(())
-    }
-
-    pub fn resign_guardian(env: Env, guardian: Address) -> Result<(), ContractError> {
-        guardian.require_auth();
-        if !guardian::is_guardian(&env, &guardian) {
-            return Err(ContractError::NotGuardian);
-        }
-        let g_key = DataKey::Guardian(guardian.clone());
-        env.storage().instance().remove(&g_key);
-        let key = DataKey::LockedBalance(guardian.clone());
-        let amount: i128 = env.storage().instance().get(&key).unwrap_or(0);
-        if amount > 0 {
-            let token: Address = env
-                .storage()
-                .instance()
-                .get(&DataKey::TokenAddress)
-                .ok_or(ContractError::NotInitialized)?;
-            let token_client = soroban_sdk::token::Client::new(&env, &token);
-            token_client.transfer(&env.current_contract_address(), &guardian, &amount);
-            env.storage().instance().set(&key, &0i128);
-        }
-        Ok(())
-    }
-
     // ─── Task lifecycle ────────────────────────────────────────────
 
-    /// Register a task. Requires the caller to be the stored admin.
-    /// Any address that was not set as admin during `initialize` will be
-    /// rejected with `NotAuthorized` before auth is even checked.
     pub fn register_task(
         env: Env,
         admin: Address,
@@ -522,5 +484,9 @@ impl VeroContract {
             .instance()
             .get(&DataKey::Snapshot(timestamp))
             .ok_or(ContractError::SnapshotNotFound)
+    }
+
+    pub fn get_withdrawal_timelock(env: Env, guardian: Address) -> Option<u64> {
+        env.storage().instance().get(&DataKey::WithdrawalTimelock(guardian))
     }
 }

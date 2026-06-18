@@ -1,7 +1,8 @@
 use soroban_sdk::Env;
 
 use crate::events;
-use crate::types::{ContractError, DataKey};
+use crate::error::ContractError;
+use crate::types::DataKey;
 
 const FAILURE_THRESHOLD: u32 = 50;
 

@@ -2,6 +2,7 @@
 
 mod circuit_breaker;
 mod drips;
+mod error;
 mod gas;
 mod guardian;
 mod reentrancy;
@@ -13,8 +14,10 @@ mod vault;
 pub mod events;
 
 use soroban_sdk::{contract, contractimpl, Address, Env, Map};
-use types::{ContractError, DataKey, RewardStream, Snapshot};
+use error::ContractError;
+use types::{DataKey, RewardStream, Snapshot};
 
+pub use error::ContractError;
 pub use guardian::{add_guardian, remove_guardian, is_guardian};
 pub use task::{get_task, register_task};
 pub use drips::{get_reward_stream, start_drips_stream};
@@ -241,7 +244,7 @@ impl VeroCore {
         events::emit_weighted_vote(&env, task_id, &guardian, weight);
 
         reentrancy::unlock(&env);
-        result
+        Ok(())
     }
 
     pub fn get_task(env: Env, task_id: u64) -> Option<types::Task> {

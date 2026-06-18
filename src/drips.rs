@@ -1,7 +1,8 @@
 use soroban_sdk::{Address, Env, IntoVal, Symbol, Val, Vec as SorobanVec};
 
 use crate::storage;
-use crate::types::{ContractError, DataKey, RewardStream};
+use crate::error::ContractError;
+use crate::types::{DataKey, RewardStream};
 
 pub fn start_drips_stream(
     env: &Env,

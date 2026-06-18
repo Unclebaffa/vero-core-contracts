@@ -1,4 +1,4 @@
-use soroban_sdk::{contracterror, contracttype, Address, Map, Vec};
+use soroban_sdk::{contracttype, Address, Map, Vec};
 
 #[contracttype]
 #[derive(Clone)]
@@ -8,6 +8,7 @@ pub struct Task {
     pub is_done: bool,
     pub total_weight_accrued: u64,
     pub is_cancelled: bool,
+    pub resolved_at: u64,
 }
 
 #[contracttype]
@@ -42,6 +43,8 @@ pub enum DataKey {
     Reputation(Address),
     WeightThreshold,
     Task(u64),
+    ActiveTask(u64),
+    ArchivedTask(u64),
     Voted(u64, Address),
     Admin,
     DripsAddress,
@@ -91,26 +94,4 @@ pub enum Operation {
     ResetCircuitBreaker = 11,
     /// `upgrade_contract` — WASM upgrade; highest fixed platform cost.
     UpgradeContract = 12,
-}
-
-#[contracterror]
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ContractError {
-    NotAuthorized = 1,
-    DuplicateVote = 2,
-    TaskNotVerified = 3,
-    StreamAlreadyActive = 4,
-    DripsCallFailed = 5,
-    AlreadyInitialized = 6,
-    NotInitialized = 7,
-    NoReputationScore = 8,
-    ZeroWeightVote = 9,
-    WeightOverflow = 10,
-    InsufficientLockedBalance = 11,
-    StillGuardian = 12,
-    NotGuardian = 13,
-    Locked = 14,
-    ContractPaused = 15,
-    EscrowUnavailable = 16,
-    TaskCancelled = 17,
 }

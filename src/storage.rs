@@ -1,4 +1,5 @@
-use crate::types::{ContractError, DataKey, Task};
+use crate::error::ContractError;
+use crate::types::{DataKey, Task};
 use soroban_sdk::Env;
 
 pub const ARCHIVE_AFTER_SECONDS: u64 = 30 * 24 * 60 * 60;

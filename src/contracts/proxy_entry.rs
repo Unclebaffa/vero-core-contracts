@@ -166,6 +166,26 @@ impl VeroContract {
         task::cancel_task(&env, admin, task_id)
     }
 
+    /// Purge a terminal task (done or cancelled) from contract storage.
+    ///
+    /// Removes the task struct, its voter list, each individual `Voted` record,
+    /// and the task id from the `AllTasks` index. Reduces on-chain state size
+    /// and the cost of future `get_snapshot` calls.
+    ///
+    /// Reverts with `TaskNotFound` if no task exists, `TaskNotTerminal` if the
+    /// task is still active, and `NotAuthorized` if the caller is not the admin.
+    pub fn purge_task(env: Env, admin: Address, task_id: u64) -> Result<(), ContractError> {
+        let stored_admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .ok_or(ContractError::NotInitialized)?;
+        if admin != stored_admin {
+            return Err(ContractError::NotAuthorized);
+        }
+        task::purge_task(&env, admin, task_id)
+    }
+
     pub fn vote(env: Env, guardian: Address, task_id: u64) -> Result<(), ContractError> {
         logic::process_vote(&env, guardian, task_id)
     }

@@ -23,9 +23,6 @@ pub(crate) fn lock_tokens(env: &Env, guardian: Address, amount: i128) -> Result<
 
 pub(crate) fn request_unlock(env: &Env, guardian: Address) -> Result<(), ContractError> {
     guardian.require_auth();
-    if guardian::is_guardian(env, &guardian) {
-        return Err(ContractError::StillGuardian);
-    }
     timelock::initiate_withdrawal(env, guardian);
     Ok(())
 }
@@ -180,15 +177,8 @@ pub(crate) fn process_vote(
         }
     }
 
-    let mut all_votes: soroban_sdk::Vec<(u64, Address)> = env
-        .storage()
-        .instance()
-        .get(&DataKey::AllVotes)
-        .unwrap_or(soroban_sdk::Vec::new(env));
-    all_votes.push_back((task_id, guardian.clone()));
-    env.storage().instance().set(&DataKey::AllVotes, &all_votes);
-
     env.storage().instance().set(&voted_key, &true);
+    storage::append_task_voter(env, task_id, &guardian);
     storage::set_active_task(env, &t);
 
     events::emit_weighted_vote(env, task_id, &guardian, weight);
@@ -240,13 +230,13 @@ pub(crate) fn get_snapshot(env: &Env) -> Snapshot {
     }
 
     let mut votes = Map::new(env);
-    let all_votes: soroban_sdk::Vec<(u64, Address)> = env
-        .storage()
-        .instance()
-        .get(&DataKey::AllVotes)
-        .unwrap_or(soroban_sdk::Vec::new(env));
-    for v in all_votes.iter() {
-        votes.set(v, true);
+    let all_task_ids = task::get_all_tasks(env);
+    for t in all_task_ids.iter() {
+        let task_id = t;
+        let task_voters = storage::get_task_voters(env, task_id);
+        for voter in task_voters.iter() {
+            votes.set((task_id, voter.clone()), true);
+        }
     }
 
     let mut reward_streams = Map::new(env);

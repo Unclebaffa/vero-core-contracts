@@ -8,6 +8,7 @@ pub enum DataKey {
     WeightThreshold,
     Task(u64),
     Voted(u64, Address),
+    TaskVoters(u64),
     Admin,
     DripsAddress,
     VaultAddress,

@@ -49,6 +49,8 @@ pub struct Snapshot {
     pub reward_streams: Map<u64, RewardStream>,
 }
 
+pub use crate::contracts::storage_layout::DataKey;
+
 #[contracttype]
 #[derive(Clone)]
 pub enum DataKey {
@@ -99,6 +101,8 @@ pub enum Operation {
     UpgradeContract = 12,
     /// `record_snapshot` — records a state snapshot.
     RecordSnapshot = 13,
+    /// `purge_task` — removes a terminal task from storage.
+    PurgeTask = 14,
 }
 
 #[contracterror]
@@ -135,5 +139,8 @@ pub enum ContractError {
     TaskNotStale = 21,
     SnapshotNotFound = 22,
     WithdrawalTimelockActive = 23,
-    InsufficientReputation = 24,
+    /// Task is still active (not done and not cancelled) and cannot be purged.
+    TaskNotTerminal = 24,
+    /// Guardian's reputation score is below the minimum threshold to vote.
+    InsufficientReputation = 25,
 }

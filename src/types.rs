@@ -1,4 +1,4 @@
-use soroban_sdk::{contracterror, contracttype, Address, Map, Vec};
+use soroban_sdk::{contracterror, contracttype, Address, Map};
 
 #[contracttype]
 #[derive(Clone)]
@@ -125,4 +125,5 @@ pub enum ContractError {
     TaskNotStale = 21,
     SnapshotNotFound = 22,
     WithdrawalTimelockActive = 23,
+    InsufficientReputation = 24,
 }

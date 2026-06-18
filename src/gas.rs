@@ -24,6 +24,7 @@ pub const COST_REGISTER_TASK: u64 = 1_000_000;
 ///   base + circuit-breaker read + 5 reads (token, threshold, balance, voted, task)
 ///   + reentrancy lock/unlock (2 writes) + voted write + task write + event emission
 ///   + conditional cross-contract call to vault
+///
 ///   500_000 + 5*50_000 + 2*150_000 + 2*150_000 + 2*30_000 + 500_000
 pub const COST_VOTE: u64 = 1_960_000;
 
@@ -50,6 +51,7 @@ pub const COST_UNLOCK_TOKENS: u64 = 1_300_000;
 /// `resign_guardian`:
 ///   base + has() check + guardian status write + balance read
 ///   + conditional token transfer + balance write
+///
 ///   500_000 + 50_000 + 150_000 + 50_000 + 500_000 + 150_000
 pub const COST_RESIGN_GUARDIAN: u64 = 1_400_000;
 
@@ -61,6 +63,7 @@ pub const COST_SET_WEIGHT_THRESHOLD: u64 = 650_000;
 /// `start_reward_stream`:
 ///   base + circuit-breaker read + task read + stream has() check
 ///   + cross-contract call to Drips + stream write + event
+///
 ///   500_000 + 50_000 + 50_000 + 50_000 + 500_000 + 150_000 + 30_000
 pub const COST_START_REWARD_STREAM: u64 = 1_330_000;
 
@@ -106,19 +109,19 @@ pub const COST_RECORD_SNAPSHOT: u64 = 1_830_000;
 ///   excluded — their cost is negligible and bounded by the base invocation fee.
 pub fn get_estimated_cost(op: Operation) -> u64 {
     match op {
-        Operation::RegisterTask      => COST_REGISTER_TASK,
-        Operation::Vote              => COST_VOTE,
-        Operation::AddGuardian       => COST_ADD_GUARDIAN,
-        Operation::SetReputation     => COST_SET_REPUTATION,
-        Operation::LockTokens        => COST_LOCK_TOKENS,
-        Operation::UnlockTokens      => COST_UNLOCK_TOKENS,
-        Operation::ResignGuardian    => COST_RESIGN_GUARDIAN,
+        Operation::RegisterTask => COST_REGISTER_TASK,
+        Operation::Vote => COST_VOTE,
+        Operation::AddGuardian => COST_ADD_GUARDIAN,
+        Operation::SetReputation => COST_SET_REPUTATION,
+        Operation::LockTokens => COST_LOCK_TOKENS,
+        Operation::UnlockTokens => COST_UNLOCK_TOKENS,
+        Operation::ResignGuardian => COST_RESIGN_GUARDIAN,
         Operation::SetWeightThreshold => COST_SET_WEIGHT_THRESHOLD,
         Operation::StartRewardStream => COST_START_REWARD_STREAM,
-        Operation::TogglePause       => COST_TOGGLE_PAUSE,
-        Operation::RecordFailure     => COST_RECORD_FAILURE,
+        Operation::TogglePause => COST_TOGGLE_PAUSE,
+        Operation::RecordFailure => COST_RECORD_FAILURE,
         Operation::ResetCircuitBreaker => COST_RESET_CIRCUIT_BREAKER,
-        Operation::UpgradeContract   => COST_UPGRADE_CONTRACT,
-        Operation::RecordSnapshot    => COST_RECORD_SNAPSHOT,
+        Operation::UpgradeContract => COST_UPGRADE_CONTRACT,
+        Operation::RecordSnapshot => COST_RECORD_SNAPSHOT,
     }
 }

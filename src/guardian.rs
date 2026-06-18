@@ -15,7 +15,9 @@ pub fn add_guardian(env: &Env, admin: Address, guardian: Address) {
             .get(&DataKey::AllGuardians)
             .unwrap_or(Vec::new(env));
         all_guardians.push_back(guardian.clone());
-        env.storage().instance().set(&DataKey::AllGuardians, &all_guardians);
+        env.storage()
+            .instance()
+            .set(&DataKey::AllGuardians, &all_guardians);
     }
 
     env.storage().instance().set(&key, &true);

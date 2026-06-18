@@ -32,13 +32,17 @@ pub fn emit_circuit_breaker_triggered(env: &Env, failure_count: u32) {
 }
 
 pub fn emit_withdrawal_requested(env: &Env, request_id: u64, recipient: &Address, amount: i128) {
-    env.events()
-        .publish((symbol_short!("wd_req"),), (request_id, recipient.clone(), amount));
+    env.events().publish(
+        (symbol_short!("wd_req"),),
+        (request_id, recipient.clone(), amount),
+    );
 }
 
 pub fn emit_withdrawal_executed(env: &Env, request_id: u64, recipient: &Address, amount: i128) {
-    env.events()
-        .publish((symbol_short!("wd_exec"),), (request_id, recipient.clone(), amount));
+    env.events().publish(
+        (symbol_short!("wd_exec"),),
+        (request_id, recipient.clone(), amount),
+    );
 }
 
 pub fn emit_withdrawal_cancelled(env: &Env, request_id: u64) {
@@ -47,8 +51,7 @@ pub fn emit_withdrawal_cancelled(env: &Env, request_id: u64) {
 }
 
 pub fn emit_task_cancelled(env: &Env, task_id: u64) {
-    env.events()
-        .publish((symbol_short!("cancelled"),), task_id);
+    env.events().publish((symbol_short!("cancelled"),), task_id);
 }
 
 pub fn emit_snapshot_recorded(env: &Env, timestamp: u64) {

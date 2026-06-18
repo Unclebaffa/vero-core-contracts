@@ -1,5 +1,5 @@
-use soroban_sdk::{Address, Env};
 use crate::types::{ContractError, DataKey};
+use soroban_sdk::{Address, Env};
 
 const WITHDRAWAL_DELAY_SECONDS: u64 = 86400; // 24 hours
 

@@ -1,7 +1,10 @@
 #![no_std]
 
+mod contracts;
+
 mod circuit_breaker;
 mod drips;
+pub mod events;
 mod gas;
 mod guardian;
 mod reentrancy;
@@ -11,14 +14,11 @@ mod task;
 mod timelock;
 mod types;
 mod vault;
-pub mod events;
 
-use soroban_sdk::{contract, contractimpl, Address, Env, Map};
-use types::{ContractError, DataKey, RewardStream, Snapshot};
-
-pub use guardian::{add_guardian, remove_guardian, is_guardian};
-pub use task::{get_task, register_tasks};
+pub use contracts::proxy_entry::{VeroContract, VeroContractClient};
 pub use drips::{get_reward_stream, start_drips_stream};
+pub use guardian::{add_guardian, is_guardian, remove_guardian};
+pub use task::{get_task, register_tasks};
 pub use types::Operation;
 
 const DEFAULT_WEIGHT_THRESHOLD: u64 = 300;

@@ -42,7 +42,9 @@ pub fn start_drips_stream(
         .get(&DataKey::AllRewardStreams)
         .unwrap_or(SorobanVec::new(env));
     all_streams.push_back(task_id);
-    env.storage().instance().set(&DataKey::AllRewardStreams, &all_streams);
+    env.storage()
+        .instance()
+        .set(&DataKey::AllRewardStreams, &all_streams);
 
     let stream = RewardStream {
         task_id,

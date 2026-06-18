@@ -25,6 +25,8 @@ pub const COST_REGISTER_TASK: u64 = 1_000_000;
 ///   + reentrancy lock/unlock (2 writes) + voted write + task write + event emission
 ///   + conditional cross-contract call to vault
 ///     500_000 + 5*50_000 + 2*150_000 + 2*150_000 + 2*30_000 + 500_000
+///
+///   500_000 + 5*50_000 + 2*150_000 + 2*150_000 + 2*30_000 + 500_000
 pub const COST_VOTE: u64 = 1_960_000;
 
 /// `add_guardian`:
@@ -51,6 +53,8 @@ pub const COST_UNLOCK_TOKENS: u64 = 1_300_000;
 ///   base + has() check + guardian status write + balance read
 ///   + conditional token transfer + balance write
 ///     500_000 + 50_000 + 150_000 + 50_000 + 500_000 + 150_000
+///
+///   500_000 + 50_000 + 150_000 + 50_000 + 500_000 + 150_000
 pub const COST_RESIGN_GUARDIAN: u64 = 1_400_000;
 
 /// `set_weight_threshold`:
@@ -62,6 +66,8 @@ pub const COST_SET_WEIGHT_THRESHOLD: u64 = 650_000;
 ///   base + circuit-breaker read + task read + stream has() check
 ///   + cross-contract call to Drips + stream write + event
 ///     500_000 + 50_000 + 50_000 + 50_000 + 500_000 + 150_000 + 30_000
+///
+///   500_000 + 50_000 + 50_000 + 50_000 + 500_000 + 150_000 + 30_000
 pub const COST_START_REWARD_STREAM: u64 = 1_330_000;
 
 /// `toggle_pause` / `pause` / `unpause`:
@@ -83,6 +89,11 @@ pub const COST_RESET_CIRCUIT_BREAKER: u64 = 800_000;
 ///   base + WASM deployer overhead (fixed platform cost for new wasm hash write)
 ///   500_000 + 2_000_000
 pub const COST_UPGRADE_CONTRACT: u64 = 2_500_000;
+
+/// `record_snapshot`:
+///   base + get_snapshot (many reads) + 2 writes (AllSnapshots + Snapshot) + event
+///   500_000 + 20*50_000 + 2*150_000 + 30_000
+pub const COST_RECORD_SNAPSHOT: u64 = 1_830_000;
 
 // ─── Public mapping function ───────────────────────────────────────────────────
 
@@ -114,5 +125,6 @@ pub fn get_estimated_cost(op: Operation) -> u64 {
         Operation::RecordFailure => COST_RECORD_FAILURE,
         Operation::ResetCircuitBreaker => COST_RESET_CIRCUIT_BREAKER,
         Operation::UpgradeContract => COST_UPGRADE_CONTRACT,
+        Operation::RecordSnapshot => COST_RECORD_SNAPSHOT,
     }
 }

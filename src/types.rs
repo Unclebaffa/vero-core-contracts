@@ -1,6 +1,17 @@
 use soroban_sdk::{contracterror, contracttype, Address, Map};
 
 #[contracttype]
+#[derive(Clone)]
+pub struct WithdrawalRequest {
+    pub id: u64,
+    pub recipient: Address,
+    pub amount: i128,
+    pub requested_at_ledger: u32,
+    pub is_executed: bool,
+    pub is_cancelled: bool,
+}
+
+#[contracttype]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Task {
     pub id: u64,
@@ -9,6 +20,7 @@ pub struct Task {
     pub resolved_at: u64,
     pub total_weight_accrued: u64,
     pub is_cancelled: bool,
+    pub resolved_at: u64,
 }
 
 #[contracttype]
@@ -23,6 +35,7 @@ pub struct RewardStream {
 #[contracttype]
 #[derive(Clone)]
 pub struct Snapshot {
+    pub timestamp: u64,
     pub paused: bool,
     pub failure_count: u32,
     pub weight_threshold: u64,
@@ -44,6 +57,7 @@ pub enum DataKey {
     WeightThreshold,
     Task(u64),
     Voted(u64, Address),
+    TaskVoters(u64),
     Admin,
     DripsAddress,
     VaultAddress,
@@ -57,43 +71,34 @@ pub enum DataKey {
     Paused,
     AllGuardians,
     AllTasks,
-    AllVotes,
     AllRewardStreams,
+    Snapshot(u64),
+    AllSnapshots,
+    ActiveTask(u64),
+    ArchivedTask(u64),
     Initialized,
+    WithdrawalTimelock(Address),
 }
 
 /// Every public write operation exposed by VeroContract.
-/// Used as the argument to `get_estimated_cost` so callers can query
-/// the estimated instruction-unit cost before submitting a transaction.
 #[contracttype]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Operation {
-    /// `register_task` — 2 storage writes (reentrancy lock + task entry).
     RegisterTask = 0,
-    /// `vote` — most complex path: 5+ reads, 2 writes, conditional cross-contract call.
     Vote = 1,
-    /// `add_guardian` — 1 write + admin auth check.
     AddGuardian = 2,
-    /// `set_reputation` — 1 write + admin auth check.
     SetReputation = 3,
-    /// `lock_tokens` — token cross-contract transfer + 2 storage writes.
     LockTokens = 4,
-    /// `unlock_tokens` — same structure as `lock_tokens`.
     UnlockTokens = 5,
-    /// `resign_guardian` — 2 writes + conditional token transfer.
     ResignGuardian = 6,
-    /// `set_weight_threshold` — 1 write + admin auth.
     SetWeightThreshold = 7,
-    /// `start_reward_stream` — 2 reads + cross-contract call + 1 write.
     StartRewardStream = 8,
-    /// `toggle_pause` / `pause` / `unpause` — 1 read + 1 write + event emission.
     TogglePause = 9,
-    /// `record_failure` — 1 read + 1 write + conditional second write.
     RecordFailure = 10,
-    /// `reset_circuit_breaker` — 2 writes + admin auth.
     ResetCircuitBreaker = 11,
-    /// `upgrade_contract` — WASM upgrade; highest fixed platform cost.
     UpgradeContract = 12,
+    /// `record_snapshot` — records a state snapshot.
+    RecordSnapshot = 13,
 }
 
 #[contracterror]
@@ -124,4 +129,11 @@ pub enum ContractError {
     TaskNotFound = 23,
     TaskAlreadyArchived = 24,
     TaskNotStale = 25,
+    TaskNotFound = 18,
+    BatchTooLarge = 19,
+    TaskAlreadyArchived = 20,
+    TaskNotStale = 21,
+    SnapshotNotFound = 22,
+    WithdrawalTimelockActive = 23,
+    InsufficientReputation = 24,
 }

@@ -1001,3 +1001,43 @@ fn test_request_unlock_fails_if_still_guardian() {
     let result = client.try_request_unlock(&guardian);
     assert!(result.is_err());
 }
+
+// ─── Batch execution tests ──────────────────────────────────────────
+
+#[test]
+fn test_batch_execute_successful() {
+    let (env, admin, token, client) = setup();
+    let guardian = add_guardian_with_rep(&env, &client, &admin, 300);
+    lock_for_guardian(&env, &token, &client, &guardian, 150);
+
+    let calls = soroban_sdk::vec![
+        &env,
+        vero_core_contracts::BatchCall::RegisterTask(admin.clone(), 1u64),
+        vero_core_contracts::BatchCall::Vote(guardian.clone(), 1u64),
+    ];
+
+    client.batch_execute(&calls);
+
+    let task = client.get_task(&1u64).unwrap();
+    assert_eq!(task.votes, 1);
+}
+
+#[test]
+fn test_batch_execute_reverts_on_failure() {
+    let (env, admin, _token, client) = setup();
+    let guardian = add_guardian_with_rep(&env, &client, &admin, 300);
+
+    // Register a valid task, but vote on an invalid task (task_id 99 doesn't exist)
+    let calls = soroban_sdk::vec![
+        &env,
+        vero_core_contracts::BatchCall::RegisterTask(admin.clone(), 2u64),
+        vero_core_contracts::BatchCall::Vote(guardian.clone(), 99u64),
+    ];
+
+    let result = client.try_batch_execute(&calls);
+    assert!(result.is_err());
+
+    // Because it reverts, the valid part (RegisterTask 2) should NOT be persisted.
+    let task = client.get_task(&2u64);
+    assert!(task.is_none());
+}

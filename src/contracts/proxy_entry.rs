@@ -1,5 +1,5 @@
 use crate::contracts::logic;
-use crate::types::{ContractError, DataKey, RewardStream, Snapshot};
+use crate::types::{BatchCall, ContractError, DataKey, RewardStream, Snapshot};
 use crate::DEFAULT_WEIGHT_THRESHOLD;
 use crate::{circuit_breaker, drips, events, guardian, reputation, storage, task};
 use soroban_sdk::{contract, contractimpl, Address, Env};
@@ -249,5 +249,56 @@ impl VeroContract {
         env.storage()
             .instance()
             .get(&DataKey::WithdrawalTimelock(guardian))
+    }
+
+    pub fn batch_execute(
+        env: Env,
+        calls: soroban_sdk::Vec<BatchCall>,
+    ) -> Result<(), ContractError> {
+        for call in calls.iter() {
+            match call {
+                BatchCall::RegisterTask(admin, task_id) => {
+                    Self::register_task(env.clone(), admin, task_id)?
+                }
+                BatchCall::CancelTask(admin, task_id) => {
+                    Self::cancel_task(env.clone(), admin, task_id)?
+                }
+                BatchCall::Vote(guardian, task_id) => Self::vote(env.clone(), guardian, task_id)?,
+                BatchCall::AddGuardian(admin, guardian) => {
+                    Self::add_guardian(env.clone(), admin, guardian)?
+                }
+                BatchCall::RemoveGuardian(admin, guardian) => {
+                    Self::remove_guardian(env.clone(), admin, guardian)?
+                }
+                BatchCall::SetReputation(admin, guardian, score) => {
+                    Self::set_reputation(env.clone(), admin, guardian, score)?
+                }
+                BatchCall::LockTokens(guardian, amount) => {
+                    Self::lock_tokens(env.clone(), guardian, amount)?
+                }
+                BatchCall::RequestUnlock(guardian) => Self::request_unlock(env.clone(), guardian)?,
+                BatchCall::UnlockTokens(guardian) => Self::unlock_tokens(env.clone(), guardian)?,
+                BatchCall::ResignGuardian(guardian) => {
+                    Self::resign_guardian(env.clone(), guardian)?
+                }
+                BatchCall::SetWeightThreshold(admin, threshold) => {
+                    Self::set_weight_threshold(env.clone(), admin, threshold)?
+                }
+                BatchCall::SetVaultAddress(admin, vault) => {
+                    Self::set_vault_address(env.clone(), admin, vault)
+                }
+                BatchCall::StartRewardStream(admin, drips, contributor, task_id) => {
+                    Self::start_reward_stream(env.clone(), admin, drips, contributor, task_id)?
+                }
+                BatchCall::TogglePause(admin) => Self::toggle_pause(env.clone(), admin)?,
+                BatchCall::Pause(admin) => Self::pause(env.clone(), admin)?,
+                BatchCall::Unpause(admin) => Self::unpause(env.clone(), admin)?,
+                BatchCall::RecordFailure(_admin) => Self::record_failure(env.clone()),
+                BatchCall::ResetCircuitBreaker(admin) => {
+                    Self::reset_circuit_breaker(env.clone(), admin)
+                }
+            }
+        }
+        Ok(())
     }
 }

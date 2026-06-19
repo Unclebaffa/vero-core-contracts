@@ -1041,3 +1041,47 @@ fn test_batch_execute_reverts_on_failure() {
     let task = client.get_task(&2u64);
     assert!(task.is_none());
 }
+
+// ─── Emergency stop tests ───────────────────────────────────────────
+
+#[test]
+fn test_emergency_stop_prevents_drain() {
+    let (env, admin, token, client) = setup();
+    let guardian = add_guardian_with_rep(&env, &client, &admin, 300);
+    lock_for_guardian(&env, &token, &client, &guardian, 150);
+
+    // Pause the contract
+    client.pause(&admin);
+
+    // Attempt to lock tokens
+    let result = client.try_lock_tokens(&guardian, &50);
+    assert!(result.is_err());
+    assert_eq!(
+        result.unwrap_err(),
+        Ok(vero_core_contracts::ContractError::ContractPaused)
+    );
+
+    // Attempt to request unlock
+    let result = client.try_request_unlock(&guardian);
+    assert!(result.is_err());
+    assert_eq!(
+        result.unwrap_err(),
+        Ok(vero_core_contracts::ContractError::ContractPaused)
+    );
+
+    // Attempt to resign
+    let result = client.try_resign_guardian(&guardian);
+    assert!(result.is_err());
+    assert_eq!(
+        result.unwrap_err(),
+        Ok(vero_core_contracts::ContractError::ContractPaused)
+    );
+
+    // Fast forward to allow unlock theoretically (but shouldn't work because paused and not requested)
+    let result = client.try_unlock_tokens(&guardian);
+    assert!(result.is_err());
+    assert_eq!(
+        result.unwrap_err(),
+        Ok(vero_core_contracts::ContractError::ContractPaused)
+    );
+}

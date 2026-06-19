@@ -7,7 +7,7 @@
 ///
 /// The contract's `vote()` entry point delegates to [`apply_vote`] after
 /// performing all authentication, authorisation, and storage I/O.
-
+///
 /// Errors that can arise purely from consensus arithmetic.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ConsensusError {
@@ -39,6 +39,12 @@ impl ConsensusState {
             votes: 0,
             is_done: false,
         }
+    }
+}
+
+impl Default for ConsensusState {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

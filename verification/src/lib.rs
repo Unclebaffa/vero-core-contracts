@@ -63,7 +63,10 @@ fn proof_threshold_invariant() {
     let result = apply_vote(&mut state, weight, threshold);
 
     // A non-zero weight with no prior accumulation must succeed
-    assert!(result.is_ok(), "non-zero vote on fresh state must not overflow");
+    assert!(
+        result.is_ok(),
+        "non-zero vote on fresh state must not overflow"
+    );
 
     // Core invariant: is_done iff weight meets threshold
     if weight >= threshold {
@@ -193,10 +196,7 @@ fn proof_weight_overflow_impossible() {
         state.total_weight_accrued, before,
         "total_weight_accrued must not be modified on overflow"
     );
-    assert!(
-        !state.is_done,
-        "is_done must not be set on overflow error"
-    );
+    assert!(!state.is_done, "is_done must not be set on overflow error");
 }
 
 // ─── Harness 5 ────────────────────────────────────────────────────────────────
@@ -319,14 +319,23 @@ fn proof_multi_vote_accumulation() {
     assert!(r2.is_ok());
 
     let total = w1 + w2; // safe: both <= MAX/2
-    assert_eq!(state.total_weight_accrued, total, "weight must accumulate correctly");
+    assert_eq!(
+        state.total_weight_accrued, total,
+        "weight must accumulate correctly"
+    );
     assert_eq!(state.votes, 2, "vote count must be 2 after two votes");
 
     // Resolution must happen iff the sum meets threshold
     if total >= threshold {
-        assert!(state.is_done, "must be resolved when accumulated weight >= threshold");
+        assert!(
+            state.is_done,
+            "must be resolved when accumulated weight >= threshold"
+        );
     } else {
-        assert!(!state.is_done, "must not be resolved when accumulated weight < threshold");
+        assert!(
+            !state.is_done,
+            "must not be resolved when accumulated weight < threshold"
+        );
     }
 }
 

@@ -2,6 +2,7 @@ use soroban_sdk::{Address, Env, IntoVal, Symbol, Val, Vec as SorobanVec};
 
 use crate::storage;
 use crate::types::{ContractError, DataKey, RewardStream};
+use crate::validation;
 
 pub fn start_drips_stream(
     env: &Env,
@@ -9,6 +10,7 @@ pub fn start_drips_stream(
     contributor: Address,
     task_id: u64,
 ) -> Result<(), ContractError> {
+    validation::validate_reward_stream_config(env, &drips_address, &contributor, task_id)?;
     let task = storage::get_active_task(env, task_id).ok_or(ContractError::TaskNotFound)?;
 
     if task.is_cancelled {

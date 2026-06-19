@@ -12,18 +12,18 @@ pub struct WithdrawalRequest {
 }
 
 #[contracttype]
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Task {
     pub id: u64,
     pub votes: u32,
     pub is_done: bool,
+    pub resolved_at: u64,
     pub total_weight_accrued: u64,
     pub is_cancelled: bool,
-    pub resolved_at: u64,
 }
 
 #[contracttype]
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RewardStream {
     pub task_id: u64,
     pub contributor: Address,
@@ -50,8 +50,9 @@ pub struct Snapshot {
 
 pub use crate::contracts::storage_layout::DataKey;
 
+/// A single call within a `batch_execute` transaction.
 #[contracttype]
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone)]
 pub enum BatchCall {
     RegisterTask(Address, u64),
     CancelTask(Address, u64),
@@ -92,6 +93,10 @@ pub enum Operation {
     UpgradeContract = 12,
     /// `record_snapshot` — records a state snapshot.
     RecordSnapshot = 13,
+    /// `purge_task` — removes a terminal task from storage.
+    PurgeTask = 14,
+    /// `vote_batch` — vote on multiple tasks in one transaction.
+    VoteBatch = 15,
 }
 
 #[contracterror]
@@ -114,11 +119,18 @@ pub enum ContractError {
     ContractPaused = 15,
     EscrowUnavailable = 16,
     TaskCancelled = 17,
-    TaskNotFound = 18,
-    BatchTooLarge = 19,
-    TaskAlreadyArchived = 20,
-    TaskNotStale = 21,
-    SnapshotNotFound = 22,
-    WithdrawalTimelockActive = 23,
-    InsufficientReputation = 24,
+    InvalidAddress = 18,
+    InvalidAmount = 19,
+    InvalidConfig = 20,
+    InvalidRange = 21,
+    BatchTooLarge = 22,
+    TaskNotFound = 23,
+    TaskAlreadyArchived = 24,
+    TaskNotStale = 25,
+    SnapshotNotFound = 26,
+    WithdrawalTimelockActive = 27,
+    /// Task is still active (not done and not cancelled) and cannot be purged.
+    TaskNotTerminal = 28,
+    /// Guardian's reputation score is below the minimum threshold to vote.
+    InsufficientReputation = 29,
 }

@@ -1,7 +1,6 @@
 use soroban_sdk::Env;
 
-use crate::error::ContractError;
-use crate::types::DataKey;
+use crate::types::{ContractError, DataKey};
 
 /// Acquires the mutex. Returns `Err(Locked)` if already held.
 pub fn lock(env: &Env) -> Result<(), ContractError> {

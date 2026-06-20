@@ -1,5 +1,7 @@
 use soroban_sdk::{contracterror, contracttype, Address, Map};
 
+pub use crate::contracts::storage_layout::DataKey;
+
 #[contracttype]
 #[derive(Clone)]
 pub struct WithdrawalRequest {
@@ -20,7 +22,6 @@ pub struct Task {
     pub resolved_at: u64,
     pub total_weight_accrued: u64,
     pub is_cancelled: bool,
-    pub resolved_at: u64,
 }
 
 #[contracttype]
@@ -49,41 +50,6 @@ pub struct Snapshot {
     pub reward_streams: Map<u64, RewardStream>,
 }
 
-pub use crate::contracts::storage_layout::DataKey;
-
-#[contracttype]
-#[derive(Clone)]
-pub enum DataKey {
-    Guardian(Address),
-    Reputation(Address),
-    WeightThreshold,
-    Task(u64),
-    ActiveTask(u64),
-    ArchivedTask(u64),
-    Voted(u64, Address),
-    TaskVoters(u64),
-    Admin,
-    DripsAddress,
-    VaultAddress,
-    RewardStream(u64),
-    TokenAddress,
-    LockThreshold,
-    LockedBalance(Address),
-    ArchivedTask(u64),
-    Lock,
-    FailureCount,
-    Paused,
-    AllGuardians,
-    AllTasks,
-    AllRewardStreams,
-    Snapshot(u64),
-    AllSnapshots,
-    ActiveTask(u64),
-    ArchivedTask(u64),
-    Initialized,
-    WithdrawalTimelock(Address),
-}
-
 /// Every public write operation exposed by VeroContract.
 #[contracttype]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -101,10 +67,32 @@ pub enum Operation {
     RecordFailure = 10,
     ResetCircuitBreaker = 11,
     UpgradeContract = 12,
-    /// `record_snapshot` — records a state snapshot.
     RecordSnapshot = 13,
-    /// `purge_task` — removes a terminal task from storage.
     PurgeTask = 14,
+}
+
+/// Batch call variants for the `batch_execute` entry point.
+#[contracttype]
+#[derive(Clone)]
+pub enum BatchCall {
+    RegisterTask(Address, u64),
+    CancelTask(Address, u64),
+    Vote(Address, u64),
+    AddGuardian(Address, Address),
+    RemoveGuardian(Address, Address),
+    SetReputation(Address, Address, u64),
+    LockTokens(Address, i128),
+    RequestUnlock(Address),
+    UnlockTokens(Address),
+    ResignGuardian(Address),
+    SetWeightThreshold(Address, u64),
+    SetVaultAddress(Address, Address),
+    StartRewardStream(Address, Address, Address, u64),
+    TogglePause(Address),
+    Pause(Address),
+    Unpause(Address),
+    RecordFailure(Address),
+    ResetCircuitBreaker(Address),
 }
 
 #[contracterror]
@@ -135,14 +123,8 @@ pub enum ContractError {
     TaskNotFound = 23,
     TaskAlreadyArchived = 24,
     TaskNotStale = 25,
-    TaskNotFound = 18,
-    BatchTooLarge = 19,
-    TaskAlreadyArchived = 20,
-    TaskNotStale = 21,
-    SnapshotNotFound = 22,
-    WithdrawalTimelockActive = 23,
-    /// Task is still active (not done and not cancelled) and cannot be purged.
-    TaskNotTerminal = 24,
-    /// Guardian's reputation score is below the minimum threshold to vote.
-    InsufficientReputation = 25,
+    SnapshotNotFound = 26,
+    WithdrawalTimelockActive = 27,
+    TaskNotTerminal = 28,
+    InsufficientReputation = 29,
 }

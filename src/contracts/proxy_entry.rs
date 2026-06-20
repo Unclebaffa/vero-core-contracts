@@ -70,7 +70,7 @@ impl VeroContract {
 
     pub fn add_guardian(env: Env, admin: Address, guardian: Address) -> Result<(), ContractError> {
         circuit_breaker::require_not_paused(&env)?;
-        guardian::add_guardian(&env, admin, guardian);
+        guardian::add_guardian(&env, admin, guardian)?;
         Ok(())
     }
 
@@ -80,7 +80,7 @@ impl VeroContract {
         guardian: Address,
     ) -> Result<(), ContractError> {
         circuit_breaker::require_not_paused(&env)?;
-        guardian::remove_guardian(&env, admin, guardian);
+        guardian::remove_guardian(&env, admin, guardian)?;
         Ok(())
     }
 
@@ -95,7 +95,7 @@ impl VeroContract {
         score: u64,
     ) -> Result<(), ContractError> {
         circuit_breaker::require_not_paused(&env)?;
-        reputation::set_reputation(&env, admin, guardian, score);
+        reputation::set_reputation(&env, admin, guardian, score)?;
         Ok(())
     }
 
@@ -230,8 +230,8 @@ impl VeroContract {
         circuit_breaker::record_failure(&env);
     }
 
-    pub fn reset_circuit_breaker(env: Env, admin: Address) {
-        circuit_breaker::reset(&env, admin);
+    pub fn reset_circuit_breaker(env: Env, admin: Address) -> Result<(), ContractError> {
+        circuit_breaker::reset(&env, admin)
     }
 
     pub fn get_estimated_cost(_env: Env, op: crate::types::Operation) -> u64 {
@@ -315,7 +315,7 @@ impl VeroContract {
                 BatchCall::Unpause(admin) => Self::unpause(env.clone(), admin)?,
                 BatchCall::RecordFailure(_admin) => Self::record_failure(env.clone()),
                 BatchCall::ResetCircuitBreaker(admin) => {
-                    Self::reset_circuit_breaker(env.clone(), admin)
+                    Self::reset_circuit_breaker(env.clone(), admin)?
                 }
             }
         }

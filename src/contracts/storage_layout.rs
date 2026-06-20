@@ -1,5 +1,10 @@
 use soroban_sdk::{contracttype, Address};
 
+/// Canonical storage key definitions for the Vero contract.
+///
+/// All contract state is stored under these typed keys in instance storage.
+/// This is the single source of truth for `DataKey` — `crate::types` re-exports
+/// it via `pub use crate::contracts::storage_layout::DataKey`.
 #[contracttype]
 #[derive(Clone)]
 pub enum DataKey {

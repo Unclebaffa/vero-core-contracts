@@ -1,20 +1,40 @@
-use soroban_sdk::{contracterror, contracttype, Address};
+use soroban_sdk::{contracterror, contracttype, Address, BytesN, Map};
+
+pub use crate::contracts::storage_layout::DataKey;
+
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
+pub enum Error {
+    NotAdmin = 1,
+    NotGuardian = 2,
+    TaskAlreadyResolved = 3,
+    DuplicateVote = 4,
+}
 
 #[contracttype]
 #[derive(Clone)]
+pub struct WithdrawalRequest {
+    pub id: u64,
+    pub recipient: Address,
+    pub amount: i128,
+    pub requested_at_ledger: u32,
+    pub is_executed: bool,
+    pub is_cancelled: bool,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Task {
     pub id: u64,
     pub votes: u32,
     pub is_done: bool,
-    /// Cumulative reputation weight accrued from all guardian votes.
-    /// Consensus is reached when this meets or exceeds the weight threshold.
+    pub resolved_at: u64,
     pub total_weight_accrued: u64,
+    pub is_cancelled: bool,
 }
 
-/// Represents an active reward stream initiated via the Drips protocol
-/// after a task has been verified by guardian consensus.
 #[contracttype]
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RewardStream {
     pub task_id: u64,
     pub contributor: Address,

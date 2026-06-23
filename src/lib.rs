@@ -1,14 +1,21 @@
 #![no_std]
 
+mod contracts;
+
 mod circuit_breaker;
+#[cfg(any(feature = "verification", test))]
+pub mod consensus;
 mod drips;
 pub mod events;
 mod guardian;
 mod migrate;
 mod reentrancy;
 mod reputation;
+mod storage;
 mod task;
+mod timelock;
 mod types;
+mod validation;
 mod vault;
 
 use soroban_sdk::{contract, contractimpl, Address, Env};
@@ -166,19 +173,7 @@ impl VeroContract {
         guardian::is_guardian(&env, &guardian)
     }
 
-    // ─── Reputation management ─────────────────────────────────────
 
-    /// Sets the reputation score for a guardian. Only callable by admin.
-    pub fn set_reputation(
-        env: Env,
-        admin: Address,
-        guardian: Address,
-        score: u64,
-    ) -> Result<(), ContractError> {
-        require_not_paused(&env)?;
-        reputation::set_reputation(&env, admin, guardian, score);
-        Ok(())
-    }
 
     /// Returns the raw reputation score for a guardian.
     pub fn get_reputation(env: Env, guardian: Address) -> Result<Option<u64>, ContractError> {
@@ -409,7 +404,7 @@ impl VeroContract {
         circuit_breaker::reset(&env, admin);
     }
 
-    // ─── Contract upgrade ──────────────────────────────────────────
+pub const DEFAULT_WEIGHT_THRESHOLD: u64 = 300;
 
     /// Upgrades the contract to a new WASM. Only callable by admin.
     /// Uses Soroban's deployer to update the WASM hash in storage.

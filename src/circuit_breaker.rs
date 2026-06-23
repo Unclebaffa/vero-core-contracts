@@ -2,6 +2,7 @@ use soroban_sdk::Env;
 
 use crate::events;
 use crate::types::{ContractError, DataKey};
+use crate::validation;
 
 const FAILURE_THRESHOLD: u32 = 50;
 
@@ -27,8 +28,8 @@ pub fn record_failure(env: &Env) {
         .storage()
         .instance()
         .get(&DataKey::FailureCount)
-        .unwrap_or(0)
-        + 1;
+        .unwrap_or(0u32)
+        .saturating_add(1);
 
     env.storage().instance().set(&DataKey::FailureCount, &count);
 
@@ -45,8 +46,10 @@ pub fn record_failure(env: &Env) {
 }
 
 /// Resets the failure counter and unpauses the contract. Admin only.
-pub fn reset(env: &Env, admin: soroban_sdk::Address) {
+pub fn reset(env: &Env, admin: soroban_sdk::Address) -> Result<(), ContractError> {
+    validation::validate_admin_address(env, &admin)?;
     admin.require_auth();
     env.storage().instance().set(&DataKey::FailureCount, &0u32);
     env.storage().instance().remove(&DataKey::Paused);
+    Ok(())
 }

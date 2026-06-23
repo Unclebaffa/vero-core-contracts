@@ -1,13 +1,27 @@
-use soroban_sdk::{Address, Env};
+use soroban_sdk::{panic_with_error, Address, Env, Vec};
 
-use crate::types::DataKey;
+use crate::types::{ContractError, DataKey, Error};
+use crate::validation;
 
 const LEDGER_TTL: u32 = 100_000;
 
-pub fn add_guardian(env: &Env, admin: Address, guardian: Address) {
+pub fn add_guardian(env: &Env, admin: Address, guardian: Address) -> Result<(), ContractError> {
+    validation::validate_guardian_config(env, &admin, &guardian)?;
     admin.require_auth();
 
-    let key = DataKey::Guardian(guardian);
+    let key = DataKey::Guardian(guardian.clone());
+    if !env.storage().instance().has(&key) {
+        let mut all_guardians: Vec<Address> = env
+            .storage()
+            .instance()
+            .get(&DataKey::AllGuardians)
+            .unwrap_or(Vec::new(env));
+        all_guardians.push_back(guardian.clone());
+        env.storage()
+            .instance()
+            .set(&DataKey::AllGuardians, &all_guardians);
+    }
+
     env.storage().instance().set(&key, &true);
     env.storage().instance().extend_ttl(LEDGER_TTL, LEDGER_TTL);
 }
@@ -15,4 +29,11 @@ pub fn add_guardian(env: &Env, admin: Address, guardian: Address) {
 pub fn is_guardian(env: &Env, guardian: &Address) -> bool {
     let key = DataKey::Guardian(guardian.clone());
     env.storage().instance().get(&key).unwrap_or(false)
+}
+
+pub fn get_all_guardians(env: &Env) -> Vec<Address> {
+    env.storage()
+        .instance()
+        .get(&DataKey::AllGuardians)
+        .unwrap_or(Vec::new(env))
 }

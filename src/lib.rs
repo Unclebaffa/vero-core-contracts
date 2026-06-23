@@ -24,10 +24,7 @@ pub use contracts::proxy_entry::{VeroContract, VeroContractClient};
 pub use drips::{get_reward_stream, start_drips_stream};
 pub use guardian::{add_guardian, is_guardian, remove_guardian};
 pub use task::{get_task, register_tasks};
-pub use types::{BatchCall, Operation};
-
-const DEFAULT_WEIGHT_THRESHOLD: u64 = 300;
-pub use types::{BatchCall, ContractError, Operation};
+pub use types::{BatchCall, ContractError, Error, Operation};
 
 pub const DEFAULT_WEIGHT_THRESHOLD: u64 = 300;
 

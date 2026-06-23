@@ -34,4 +34,8 @@ pub enum DataKey {
     ArchivedTask(u64),
     Initialized,
     WithdrawalTimelock(Address),
+    UpgradeSigners,
+    UpgradeThreshold,
+    PendingUpgradeWasm,
+    PendingUpgradeApprovals,
 }

@@ -2,6 +2,15 @@ use soroban_sdk::{contracterror, contracttype, Address, BytesN, Map};
 
 pub use crate::contracts::storage_layout::DataKey;
 
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
+pub enum Error {
+    NotAdmin = 1,
+    NotGuardian = 2,
+    TaskAlreadyResolved = 3,
+    DuplicateVote = 4,
+}
+
 #[contracttype]
 #[derive(Clone)]
 pub struct WithdrawalRequest {
@@ -49,8 +58,6 @@ pub struct Snapshot {
     pub votes: Map<(u64, Address), bool>,
     pub reward_streams: Map<u64, RewardStream>,
 }
-
-pub use crate::contracts::storage_layout::DataKey;
 
 /// A single call within a `batch_execute` transaction.
 #[contracttype]
@@ -119,30 +126,6 @@ pub enum Operation {
     CancelUpgrade = 20,
 }
 
-/// Batch call variants for the `batch_execute` entry point.
-#[contracttype]
-#[derive(Clone)]
-pub enum BatchCall {
-    RegisterTask(Address, u64),
-    CancelTask(Address, u64),
-    Vote(Address, u64),
-    AddGuardian(Address, Address),
-    RemoveGuardian(Address, Address),
-    SetReputation(Address, Address, u64),
-    LockTokens(Address, i128),
-    RequestUnlock(Address),
-    UnlockTokens(Address),
-    ResignGuardian(Address),
-    SetWeightThreshold(Address, u64),
-    SetVaultAddress(Address, Address),
-    StartRewardStream(Address, Address, Address, u64),
-    TogglePause(Address),
-    Pause(Address),
-    Unpause(Address),
-    RecordFailure(Address),
-    ResetCircuitBreaker(Address),
-}
-
 #[contracterror]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ContractError {
@@ -174,11 +157,6 @@ pub enum ContractError {
     SnapshotNotFound = 26,
     WithdrawalTimelockActive = 27,
     TaskNotTerminal = 28,
-    InsufficientReputation = 29,
-}
-    /// Task is still active (not done and not cancelled) and cannot be purged.
-    TaskNotTerminal = 28,
-    /// Guardian's reputation score is below the minimum threshold to vote.
     InsufficientReputation = 29,
     /// Caller is not authorized as a multi-sig upgrade signer.
     NotUpgradeSigner = 30,

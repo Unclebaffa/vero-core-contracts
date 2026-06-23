@@ -75,7 +75,7 @@ impl VeroContract {
 
     pub fn add_guardian(env: Env, admin: Address, guardian: Address) -> Result<(), ContractError> {
         circuit_breaker::require_not_paused(&env)?;
-        guardian::add_guardian(&env, admin.clone(), guardian.clone());
+        guardian::add_guardian(&env, admin.clone(), guardian.clone())?;
         events::emit_guardian_added(&env, &admin, &guardian);
         Ok(())
     }
@@ -86,7 +86,7 @@ impl VeroContract {
         guardian: Address,
     ) -> Result<(), ContractError> {
         circuit_breaker::require_not_paused(&env)?;
-        guardian::remove_guardian(&env, admin.clone(), guardian.clone());
+        guardian::remove_guardian(&env, admin.clone(), guardian.clone())?;
         events::emit_guardian_removed(&env, &admin, &guardian);
         Ok(())
     }
@@ -102,7 +102,7 @@ impl VeroContract {
         score: u64,
     ) -> Result<(), ContractError> {
         circuit_breaker::require_not_paused(&env)?;
-        reputation::set_reputation(&env, admin.clone(), guardian.clone(), score);
+        reputation::set_reputation(&env, admin.clone(), guardian.clone(), score)?;
         events::emit_reputation_set(&env, &admin, &guardian, score);
         Ok(())
     }
@@ -616,7 +616,7 @@ impl VeroContract {
                 BatchCall::Unpause(admin) => Self::unpause(env.clone(), admin)?,
                 BatchCall::RecordFailure(_admin) => Self::record_failure(env.clone()),
                 BatchCall::ResetCircuitBreaker(admin) => {
-                    Self::reset_circuit_breaker(env.clone(), admin)?
+                    Self::reset_circuit_breaker(env.clone(), admin)
                 }
             }
         }

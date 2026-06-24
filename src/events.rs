@@ -1,10 +1,12 @@
 use soroban_sdk::{symbol_short, Address, Env};
 
-pub fn emit_task_resolved(env: &Env, task_id: u64, weight: u64) {
+/// Emits an event when a task reaches consensus.
+pub fn emit_task_resolved(env: &Env, task_id: u64, total_weight: u64) {
     env.events()
-        .publish((symbol_short!("resolved"),), (task_id, weight));
+        .publish((symbol_short!("resolved"),), (task_id, total_weight));
 }
 
+/// Emits an event when a guardian casts a weighted vote.
 pub fn emit_weighted_vote(env: &Env, task_id: u64, guardian: &Address, weight: u64) {
     env.events().publish(
         (symbol_short!("wt_vote"),),
@@ -12,6 +14,7 @@ pub fn emit_weighted_vote(env: &Env, task_id: u64, guardian: &Address, weight: u
     );
 }
 
+/// Emits an event when the pause state is toggled.
 pub fn emit_pause_toggled(env: &Env, paused: bool) {
     env.events().publish((symbol_short!("paused"),), paused);
 }
@@ -26,35 +29,11 @@ pub fn emit_reward_stream_failed(env: &Env, task_id: u64, contributor: &Address)
         .publish((symbol_short!("rw_fail"),), (task_id, contributor.clone()));
 }
 
+/// Emits an event when the circuit breaker trips and pauses the contract.
+///
+/// Event topic: `"cb_trip"` (circuit_breaker_triggered)
+/// Event data: `failure_count`
 pub fn emit_circuit_breaker_triggered(env: &Env, failure_count: u32) {
-    env.events()
-        .publish((symbol_short!("cb_trip"),), (failure_count,));
-}
-
-pub fn emit_withdrawal_requested(env: &Env, request_id: u64, recipient: &Address, amount: i128) {
-    env.events().publish(
-        (symbol_short!("wd_req"),),
-        (request_id, recipient.clone(), amount),
-    );
-}
-
-pub fn emit_withdrawal_executed(env: &Env, request_id: u64, recipient: &Address, amount: i128) {
-    env.events().publish(
-        (symbol_short!("wd_exec"),),
-        (request_id, recipient.clone(), amount),
-    );
-}
-
-pub fn emit_withdrawal_cancelled(env: &Env, request_id: u64) {
-    env.events()
-        .publish((symbol_short!("wd_cncl"),), request_id);
-}
-
-pub fn emit_task_cancelled(env: &Env, task_id: u64) {
-    env.events().publish((symbol_short!("cancelled"),), task_id);
-}
-
-pub fn emit_snapshot_recorded(env: &Env, timestamp: u64) {
     env.events()
         .publish((symbol_short!("snapshot"),), timestamp);
 }

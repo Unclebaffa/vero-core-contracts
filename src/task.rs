@@ -91,14 +91,7 @@ pub fn cancel_task(env: &Env, admin: Address, task_id: u64) -> Result<(), Contra
 }
 
 pub fn get_task(env: &Env, task_id: u64) -> Option<Task> {
-    storage::get_active_task(env, task_id)
-}
-
-pub fn get_all_tasks(env: &Env) -> Vec<u64> {
-    env.storage()
-        .instance()
-        .get(&DataKey::AllTasks)
-        .unwrap_or(Vec::new(env))
+    env.storage().instance().get(&DataKey::Task(task_id))
 }
 
 /// Purge a terminal task (done or cancelled) from contract storage.

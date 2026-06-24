@@ -52,6 +52,7 @@ pub struct Task {
     pub total_weight_accrued: u64,
     /// Whether the task was cancelled.
     pub is_cancelled: bool,
+    pub min_votes_required: u32,
 }
 
 /// A stream setup to distribute rewards for completing a task.
@@ -103,7 +104,7 @@ pub struct Snapshot {
 #[contracttype]
 #[derive(Clone)]
 pub enum BatchCall {
-    RegisterTask(Address, u64),
+    RegisterTask(Address, u64, u32),
     CancelTask(Address, u64),
     Vote(Address, u64),
     AddGuardian(Address, Address),
@@ -174,15 +175,15 @@ pub enum ContractError {
     TaskNotVerified = 3,
     StreamAlreadyActive = 4,
     DripsCallFailed = 5,
-    AlreadyInitialized = 6,
-    NotInitialized = 7,
-    NoReputationScore = 8,
-    ZeroWeightVote = 9,
-    WeightOverflow = 10,
-    InsufficientLockedBalance = 11,
-    StillGuardian = 12,
-    NotGuardian = 13,
-    Locked = 14,
+    Locked = 6,
+    AlreadyInitialized = 7,
+    NotInitialized = 8,
+    InsufficientLockedBalance = 9,
+    StillGuardian = 10,
+    NotGuardian = 11,
+    NoReputationScore = 12,
+    ZeroWeightVote = 13,
+    WeightOverflow = 14,
     ContractPaused = 15,
     EscrowUnavailable = 16,
     TaskCancelled = 17,
@@ -208,4 +209,6 @@ pub enum ContractError {
     AlreadyApproved = 33,
     /// Invalid multi-sig upgrade configuration (threshold > signers or zero).
     InvalidUpgradeConfig = 34,
+    /// Cannot revoke the last remaining Admin role holder (would cause lockout).
+    LastAdminRemovalBlocked = 35,
 }

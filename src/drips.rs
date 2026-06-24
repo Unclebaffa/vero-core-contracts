@@ -41,16 +41,6 @@ pub fn start_drips_stream(
 
     env.invoke_contract::<Val>(&drips_address, &Symbol::new(env, "start_stream"), args);
 
-    let mut all_streams: SorobanVec<u64> = env
-        .storage()
-        .instance()
-        .get(&DataKey::AllRewardStreams)
-        .unwrap_or(SorobanVec::new(env));
-    all_streams.push_back(task_id);
-    env.storage()
-        .instance()
-        .set(&DataKey::AllRewardStreams, &all_streams);
-
     let stream = RewardStream {
         task_id,
         contributor: contributor.clone(),
